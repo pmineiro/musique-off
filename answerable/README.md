@@ -44,5 +44,6 @@ If you ran training you can use a checkpoint from that.  Here I'll be using a ch
 ```bash
 env split=validation train_on_dev=True dataset_seed=666 final_model_id=snapshots/onetrainingpass/save_musique_qdecompdyn_final_final ./qdecompdyn.py
 ```
+This takes roughly 2 A100-days.  To save time, you can use [snapshots/onetrainingonvalpass](snapshots/onetrainingonvalpass) which contains the final checkpoint from a single training pass on the validation set.
 
 
