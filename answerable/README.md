@@ -36,3 +36,13 @@ or you can just call evaluate directly without creating an intermediate file
 ```bash
 python ~/musique/evaluate_v1.0.py <(./reorder_preds_like.py val.preds ~/musique/data/musique_ans_v1.0_dev.jsonl) ~/musique/data/musique_ans_v1.0_dev.jsonl
 ```
+
+## Further train the answeerable solution (on the validation set)
+
+If you ran training you can use a checkpoint from that.  Here I'll be using a checkpoint that has been included in the github repo.
+
+```bash
+env split=validation train_on_dev=True dataset_seed=666 final_model_id=snapshots/onetrainingpass/save_musique_qdecompdyn_final_final ./qdecompdyn.py
+```
+
+
