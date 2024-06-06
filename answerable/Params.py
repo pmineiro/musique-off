@@ -89,6 +89,14 @@ class ParamsType(type):
         elif name == 'ref_update_weight':
             assert 0 <= value <= 1, f'ref_update_weight {value} not in [0, 1]'
 
+        if name == 'num_workers_per_gpu':
+            import torch
+            if torch.cuda.device_count() < 2:
+                import warnings
+                warnings.warn('only 1 gpu detected so forcing num_workers_per_gpu=1')
+
+                value = 1
+
         return value
 
     def get_generic_value(cls, name):
