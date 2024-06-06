@@ -52,4 +52,12 @@ If you ran training you can use a checkpoint from that. Here I'll be using a che
 ```bash
 env do_learning=False force_extractive=True prediction_file=test.preds split=test final_model_id=snapshots/onetrainonvalpass/save_musique_qdecompdyn_final_final ./qdecompdyn.py
 ```
+Don't forget to reorder the predictions file before submitting.
+```bash
+./reorder_preds_like.py test.preds ~/musique/data/musique_ans_v1.0_test.jsonl > test.inorder.preds
+```
+Hopefully you end up with something that matches [phi.rank8.trainonval.forTrue.cpfinal.ans.test.preds](phi.rank8.trainonval.forTrue.cpfinal.ans.test.preds).
 
+# If you get differences
+
+I used the [1e10cf49da9eceb263824a4e4646d0ecba4f7dec](https://huggingface.co/microsoft/Phi-3-medium-128k-instruct/commit/1e10cf49da9eceb263824a4e4646d0ecba4f7dec) snapshot of Phi3.  Try to pin the model verion and try again. 
