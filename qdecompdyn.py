@@ -221,7 +221,7 @@ def start_worker_process(*, rank, num_workers, adapters, proxy_port, printer_por
                                             do_learning=P.do_learning, max_queries=P.max_queries, ctsig=ctsig,
                                             trace=(rank == 0 and P.trace), micro_batch_size=P.micro_batch_size,
                                             distribution_matching=P.distribution_matching, force_extractive=P.force_extractive,
-                                            ataset_seed=P.dataset_seed):
+                                            dataset_seed=P.dataset_seed):
             # NB: post-processing will be required b/c things can get reordered a bit and
             # https://leaderboard.allenai.org/musique_ans/submissions/get-started says
             # "Also note that the question predictions in the predictions jsonl file (i.e., id field) must be in the same order as that of the input dataset jsonl file."
