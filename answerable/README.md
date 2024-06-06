@@ -65,3 +65,11 @@ Hopefully you end up with something that matches [phi.rank8.trainonval.forTrue.c
 # If you get differences
 
 I used the [1e10cf49da9eceb263824a4e4646d0ecba4f7dec](https://huggingface.co/microsoft/Phi-3-medium-128k-instruct/commit/1e10cf49da9eceb263824a4e4646d0ecba4f7dec) snapshot of Phi3.  Try to pin the model version and try again. 
+
+# Verbose Output
+
+If you set the `trace=True` environment variable, all the scripts will output verbose information about the internal processing of the flow.  For example
+```bash
+env CUDA_VISIBLE_DEVICES=0 trace=True do_learning=False force_extractive=True split=validation final_model_id=snapshots/onetrainpass/save_musique_qdecompdyn_final_final ./qdecompdyn.py
+```
+I included the `CUDA_VISIBLE_DEVICES=0` otherwise you'll get interleaved output from multiple worker threads.
