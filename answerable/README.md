@@ -1,3 +1,7 @@
+# Install dependencies first
+
+[install dependencies](../README.md)
+
 # Train the answerable solution (on the training set)
 
 ```bash
@@ -52,7 +56,7 @@ If you ran training you can use a checkpoint from that. Here I'll be using a che
 ```bash
 env do_learning=False force_extractive=True prediction_file=test.preds split=test final_model_id=snapshots/onetrainonvalpass/save_musique_qdecompdyn_final_final ./qdecompdyn.py
 ```
-Don't forget to reorder the predictions file before submitting.
+This takes about 1 A100-day.  Don't forget to reorder the predictions file before submitting.
 ```bash
 ./reorder_preds_like.py test.preds ~/musique/data/musique_ans_v1.0_test.jsonl > test.inorder.preds
 ```
@@ -60,4 +64,12 @@ Hopefully you end up with something that matches [phi.rank8.trainonval.forTrue.c
 
 # If you get differences
 
-I used the [1e10cf49da9eceb263824a4e4646d0ecba4f7dec](https://huggingface.co/microsoft/Phi-3-medium-128k-instruct/commit/1e10cf49da9eceb263824a4e4646d0ecba4f7dec) snapshot of Phi3.  Try to pin the model verion and try again. 
+I used the [1e10cf49da9eceb263824a4e4646d0ecba4f7dec](https://huggingface.co/microsoft/Phi-3-medium-128k-instruct/commit/1e10cf49da9eceb263824a4e4646d0ecba4f7dec) snapshot of Phi3.  Try to pin the model version and try again. 
+
+# Verbose Output
+
+If you set the `trace=True` environment variable, all the scripts will output verbose information about the internal processing of the flow.  For example
+```bash
+env CUDA_VISIBLE_DEVICES=0 trace=True do_learning=False force_extractive=True split=validation final_model_id=snapshots/onetrainingpass/save_musique_qdecompdyn_final_final ./qdecompdyn.py
+```
+I included the `CUDA_VISIBLE_DEVICES=0` otherwise you'll get interleaved output from multiple worker threads.
