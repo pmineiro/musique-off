@@ -10,7 +10,7 @@ I changed all the default settings to correspond to the submitted configuration,
 * Use gated soft ref updating.
 * Live subsample the training dataset to (approximately) match the hop moments with the dev set.
 
-This takes about 4 A100-days to run and will dump a bunch of checkpoints to the current directory.
+This takes about 4 A100-days to run and will dump a bunch of checkpoints to the current directory.  Alternatively, you can use [snapshots/onetrainingpass](snapshots/onetrainingpass) which contains the final checkpoint from a single training pass on the training set.
 
 ## Evaluate the answerable solution (on the validation set)
 
