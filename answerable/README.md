@@ -70,6 +70,6 @@ I used the [1e10cf49da9eceb263824a4e4646d0ecba4f7dec](https://huggingface.co/mic
 
 If you set the `trace=True` environment variable, all the scripts will output verbose information about the internal processing of the flow.  For example
 ```bash
-env CUDA_VISIBLE_DEVICES=0 trace=True do_learning=False force_extractive=True split=validation final_model_id=snapshots/onetrainpass/save_musique_qdecompdyn_final_final ./qdecompdyn.py
+env CUDA_VISIBLE_DEVICES=0 trace=True do_learning=False force_extractive=True split=validation final_model_id=snapshots/onetrainingpass/save_musique_qdecompdyn_final_final ./qdecompdyn.py
 ```
 I included the `CUDA_VISIBLE_DEVICES=0` otherwise you'll get interleaved output from multiple worker threads.
