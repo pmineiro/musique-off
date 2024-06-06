@@ -1,6 +1,10 @@
 # musique-off
 Online Finetuned Flow Submission to Musique QA Benchmark
 
+# Legal Stuff
+
+This code is copyright my employer at the time of authorship (Microsoft Inc.), which is an avid supporter of open research, and in particular allows researchers to release small amounts of software as open source under an automatic sample code exemption.  Please refer to [LICENSE](LICENSE) for the specific conditions.
+
 # QuickStart
 
 ## Install Dependencies
