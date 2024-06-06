@@ -1,3 +1,7 @@
+# Install dependencies first
+
+[install dependencies](../README.md)
+
 # Train the answerable solution (on the training set)
 
 ```bash
