@@ -1,18 +1,20 @@
-## Train the answerable solution (on the training set)
+# Train the answerable solution (on the training set)
 
 ```bash
-./qdecompdyn.py
+env ref_metric=ansf1 ./qdecompdyn.py
 ```
 
 I changed all the default settings to correspond to the submitted configuration, so this will:
 * Use [Phi-3-medium-128k-instruct](https://huggingface.co/microsoft/Phi-3-medium-128k-instruct).
 * Use a rank-8 Lora Adapter.
-* Use gated soft ref updating.
+* Use gated soft ref updating (`ref_metric=ansf1`)
+   * If you want unconditional soft ref updating, don't set this environment variable (e.g., just run `./qdecompdyn.py`)
+   * If you don't want soft ref updating at all, try `env ref_update_weight=0 ./qdecompdyn.py`
 * Live subsample the training dataset to (approximately) match the hop moments with the dev set.
 
 This takes about 4 A100-days to run and will dump a bunch of checkpoints to the current directory.  To save time, you can use [snapshots/onetrainingpass](snapshots/onetrainingpass) which contains the final checkpoint from a single training pass on the training set.
 
-## Evaluate the answerable solution (on the validation set)
+# Evaluate the answerable solution (on the validation set)
 
 If you ran training you can use a checkpoint from that.  Here I'll be using a checkpoint that has been included in the github repo.
 
@@ -25,10 +27,9 @@ env do_learning=False force_extractive=True prediction_file=val.preds split=vali
 
 This takes about 1 A100-day.
 
-### Reorder the prediction file
+## Reorder the prediction file
 
-Assuming you have the [musique github repo](https://github.com/stonybrooknlp/musique) checked out in `~/musique`
-
+Assuming you have the [musique github repo](https://github.com/stonybrooknlp/musique) checked out in `~/musique`:
 ```bash
 ./reorder_preds_like.py val.preds ~/musique/data/musique_ans_v1.0_dev.jsonl > val.inorder.preds
 ```
@@ -37,13 +38,18 @@ or you can just call evaluate directly without creating an intermediate file
 python ~/musique/evaluate_v1.0.py <(./reorder_preds_like.py val.preds ~/musique/data/musique_ans_v1.0_dev.jsonl) ~/musique/data/musique_ans_v1.0_dev.jsonl
 ```
 
-## Further train the answeerable solution (on the validation set)
+# Further train the answerable solution (on the validation set)
 
 If you ran training you can use a checkpoint from that.  Here I'll be using a checkpoint that has been included in the github repo.
-
 ```bash
-env split=validation train_on_dev=True dataset_seed=666 final_model_id=snapshots/onetrainingpass/save_musique_qdecompdyn_final_final ./qdecompdyn.py
+env ref_metric=ansf1 split=validation train_on_dev=True dataset_seed=666 final_model_id=snapshots/onetrainingpass/save_musique_qdecompdyn_final_final ./qdecompdyn.py
 ```
 This takes roughly 2 A100-days.  To save time, you can use [snapshots/onetrainingonvalpass](snapshots/onetrainingonvalpass) which contains the final checkpoint from a single training pass on the validation set.
 
+# Generate submission file
+
+If you ran training you can use a checkpoint from that. Here I'll be using a checkpoint that has been included in the github repo.
+```bash
+env do_learning=False force_extractive=True prediction_file=test.preds split=test final_model_id=snapshots/onetrainonvalpass/save_musique_qdecompdyn_final_final ./qdecompdyn.py
+```
 
