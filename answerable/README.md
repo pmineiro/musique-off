@@ -56,7 +56,7 @@ If you ran training you can use a checkpoint from that. Here I'll be using a che
 ```bash
 env do_learning=False force_extractive=True prediction_file=test.preds split=test final_model_id=snapshots/onetrainonvalpass/save_musique_qdecompdyn_final_final ./qdecompdyn.py
 ```
-Don't forget to reorder the predictions file before submitting.
+This takes about 1 A100-day.  Don't forget to reorder the predictions file before submitting.
 ```bash
 ./reorder_preds_like.py test.preds ~/musique/data/musique_ans_v1.0_test.jsonl > test.inorder.preds
 ```
