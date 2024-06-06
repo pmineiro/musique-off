@@ -23,3 +23,14 @@ env do_learning=False force_extractive=True prediction_file=val.preds split=vali
 * `force_extractive=True`: This adjusts the output of the flow to correspond to a span in one of the selected documents.  Set to False if you don't want this.
 * `prediction_file=val.preds`: This outputs the predictions to the file `val.preds`.  If you have multiple GPUs than the predictions file can get reordered relative to the submission files, so you need to use the [reorder_preds_like.py](reorder_preds_like.py) script.
 
+### Reorder the prediction file
+
+Assuming you have the [musique github repo](https://github.com/stonybrooknlp/musique) checked out in `~/musique`
+
+```bash
+./reorder_preds_like.py val.preds ~/musique/data/musique_ans_v1.0_dev.jsonl > val.inorder.preds
+```
+or you can just call evaluate directly without creating an intermediate file
+```bash
+python ~/musique/evaluate_v1.0.py <(./reorder_preds_like.py val.preds ~/musique/data/musique_ans_v1.0_dev.jsonl) ~/musique/data/musique_ans_v1.0_dev.jsonl
+```
