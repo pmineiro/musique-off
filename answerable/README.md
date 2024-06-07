@@ -1,3 +1,19 @@
+
+Table of Contents
+=================
+
+* [Install dependencies first](#install-dependencies-first)
+* [Train the answerable solution (on the training set)](#train-the-answerable-solution-on-the-training-set)
+* [Evaluate the answerable solution (on the validation set)](#evaluate-the-answerable-solution-on-the-validation-set)
+   * [Reorder the prediction file](#reorder-the-prediction-file)
+* [Further train the answerable solution (on the validation set)](#further-train-the-answerable-solution-on-the-validation-set)
+* [Generate submission file](#generate-submission-file)
+* [If you get differences](#if-you-get-differences)
+* [Verbose Output](#verbose-output)
+
+<!-- Created by https://github.com/ekalinin/github-markdown-toc -->
+
+
 # Install dependencies first
 
 [install dependencies](../README.md)
