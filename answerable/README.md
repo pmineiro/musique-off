@@ -12,7 +12,7 @@ I changed all the default settings to correspond to the submitted configuration,
 * Use [Phi-3-medium-128k-instruct](https://huggingface.co/microsoft/Phi-3-medium-128k-instruct).
 * Use a rank-8 Lora Adapter.
 * Use gated soft ref updating (`ref_metric=ansf1`)
-   * If you want unconditional soft ref updating, don't set this environment variable (e.g., just run `./qdecompdyn.py`)
+   * If you want unconditional soft ref updating, don't set this environment variable (i.e., just run `./qdecompdyn.py`)
    * If you don't want soft ref updating at all, try `env ref_update_weight=0 ./qdecompdyn.py`
 * Live subsample the training dataset to (approximately) match the hop moments with the dev set.
 
