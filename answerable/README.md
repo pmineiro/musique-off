@@ -16,7 +16,7 @@ I changed all the default settings to correspond to the submitted configuration,
    * If you don't want soft ref updating at all, try `env ref_update_weight=0 ./qdecompdyn.py`
 * Live subsample the training dataset to (approximately) match the hop moments with the dev set.
    * If you don't want this, try `env distribution_matching=False ./qdecompdyn.py`
-* To find more (undocumented) settings you can try, check out [Params.py](Params.py)
+   * To find more (undocumented) settings you can try, check out [Params.py](Params.py)
 
 This takes about 4 A100-days to run and will dump a bunch of checkpoints to the current directory.  To save time, you can use [snapshots/onetrainingpass](snapshots/onetrainingpass) which contains the final checkpoint from a single training pass on the training set.
 
