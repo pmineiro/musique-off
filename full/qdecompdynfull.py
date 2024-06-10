@@ -5,15 +5,17 @@ def evaluate_conversation(*, wrappers, datum, max_queries, ctsig, do_learning, t
     from more_itertools import split_into
     from Musique import MetricsAnswer, MetricsSupport
     from pprint import pformat
-    from Prompts import format_for_query, format_for_ranking, format_for_stop_retrieval, format_for_intermediate, format_for_final
+    from Prompts import format_for_query, format_for_ranking, format_for_stop_retrieval, format_for_intermediate, format_for_final, format_for_sufficiency
     from util import EpisodeData, Update, convert_to_extractive
 
+    answerable = datum['answerable']
     question = datum['question']
     paragraphs = datum['paragraphs']
     ground_truth_answers = None if datum['answer'] is None else [ datum['answer'] ] + datum['answer_aliases']
     sp_gold = None if paragraphs[0]['is_supporting'] is None else [n for n, p in enumerate(paragraphs) if p['is_supporting']]
 
     if do_learning:
+        assert answerable is not None
         assert ground_truth_answers is not None
         assert sp_gold is not None
 
@@ -39,23 +41,27 @@ def evaluate_conversation(*, wrappers, datum, max_queries, ctsig, do_learning, t
         all_choices = [ idx[sc[0]] for sc, idx in zip(all_score_choices, all_orig_indices) ]
 
         if do_learning:
-            # immediate supervised feedback for QUERY STEP
-            ranked_queries = sorted([ (paragraphs[c]['is_supporting'], q) for c, q in zip(all_choices, queries) ], reverse=True)
-            query_positive, query_negative = ranked_queries[0][1], ranked_queries[-1][1]
-            query_reward_diff = ranked_queries[0][0] - ranked_queries[-1][0]
-            updates.append(Update(wrapper_name='query', update_datum=(query_msg, query_positive, query_negative, query_reward_diff)))
+            # NB: this should an invariant: (answerable == True or all(not p['is_supporting'] for p in paragraphs))
+            # and therefore if answerable==False these steps don't do anything
+            # but in case of dataset weirdness, explicitly skip them
+            if answerable:
+                # immediate supervised feedback for QUERY STEP
+                ranked_queries = sorted([ (paragraphs[c]['is_supporting'], q) for c, q in zip(all_choices, queries) ], reverse=True)
+                query_positive, query_negative = ranked_queries[0][1], ranked_queries[-1][1]
+                query_reward_diff = ranked_queries[0][0] - ranked_queries[-1][0]
+                updates.append(Update(wrapper_name='query', update_datum=(query_msg, query_positive, query_negative, query_reward_diff)))
 
-            # immediate supervised feedback for RETRIEVE STEP
-            if any(    p['is_supporting'] for n, p in enumerate(paragraphs) if n not in used) and \
-               any(not p['is_supporting'] for n, p in enumerate(paragraphs) if n not in used):
-                best_score_choice = next(idx for idx in all_score_choices[0]
-                                             for orig_idx in (all_orig_indices[0][idx],)
-                                             if paragraphs[orig_idx]['is_supporting'])
-                updates.append(Update(wrapper_name='relevance', update_datum=(all_score_msgs[0][best_score_choice], 'Yes', 1)))
-                second_best_score_choice = next(idx for idx in all_score_choices[0]
-                                                for orig_idx in (all_orig_indices[0][idx],)
-                                                if not paragraphs[orig_idx]['is_supporting'])
-                updates.append(Update(wrapper_name='relevance', update_datum=(all_score_msgs[0][second_best_score_choice], 'No', 1)))
+                # immediate supervised feedback for RETRIEVE STEP
+                if any(    p['is_supporting'] for n, p in enumerate(paragraphs) if n not in used) and \
+                   any(not p['is_supporting'] for n, p in enumerate(paragraphs) if n not in used):
+                    best_score_choice = next(idx for idx in all_score_choices[0]
+                                                 for orig_idx in (all_orig_indices[0][idx],)
+                                                 if paragraphs[orig_idx]['is_supporting'])
+                    updates.append(Update(wrapper_name='relevance', update_datum=(all_score_msgs[0][best_score_choice], 'Yes', 1)))
+                    second_best_score_choice = next(idx for idx in all_score_choices[0]
+                                                    for orig_idx in (all_orig_indices[0][idx],)
+                                                    if not paragraphs[orig_idx]['is_supporting'])
+                    updates.append(Update(wrapper_name='relevance', update_datum=(all_score_msgs[0][second_best_score_choice], 'No', 1)))
 
         choice = all_choices[0]
         fact = paragraphs[choice]
@@ -72,9 +78,13 @@ def evaluate_conversation(*, wrappers, datum, max_queries, ctsig, do_learning, t
             action = "Yes" if stop_scores[0] > -log(2) else "No"
 
             if do_learning:
-               # immediate supervised feedback for STOP RETRIEVAL STEP
-               should_stop = not any(p['is_supporting'] for n, p in enumerate(paragraphs) if n not in used)
-               updates.append(Update(wrapper_name='stop', update_datum=(stop_msg, "Yes" if should_stop else "No", 1)))
+                # NB: this conditional is a little different than the previous one, it actually changes things
+                # without it, we'd be training that "not answerable => should_stop" at every step
+                # but there's really no good way for the stop module to know that the content is total crap until it's seen a bunch
+                if answerable:
+                    # immediate supervised feedback for STOP RETRIEVAL STEP
+                    should_stop = not any(p['is_supporting'] for n, p in enumerate(paragraphs) if n not in used)
+                    updates.append(Update(wrapper_name='stop', update_datum=(stop_msg, "Yes" if should_stop else "No", 1)))
 
             if action == "Yes":
                 break
@@ -91,34 +101,54 @@ def evaluate_conversation(*, wrappers, datum, max_queries, ctsig, do_learning, t
     final_msgs = [ format_for_final(question=question, guess=guess, ctsig=ctsig) for guess in intermediate_guesses ]
     if trace: print(f'final_msg = { pformat(final_msgs[0]) }', flush=True)
     final_guesses = [ v[0] for v in wrappers['final'].generate(final_msgs) ]
-    all_answerf1s = [ MetricsAnswer.compute_f1_max(a_golds=ground_truth_answers, a_pred=guess) for guess in final_guesses ]
+
+    if answerable:
+        all_answerf1s = [ MetricsAnswer.compute_f1_max(a_golds=ground_truth_answers, a_pred=guess) for guess in final_guesses ]
+        if do_learning:
+            ranked_intermediates = [ v for v in sorted(zip(all_answerf1s[1:], intermediate_guesses[1:]), reverse=True) ]
+            best_ranked_intermediate = ranked_intermediates[0][1]
+            greedy_intermediate = intermediate_guesses[0]
+            reward_diff = all_answerf1s[0] - ranked_intermediates[0][0]
+            intermediate_positive, intermediate_negative = (greedy_intermediate, best_ranked_intermediate) if reward_diff >= 0 else (best_ranked_intermediate, greedy_intermediate)
+
+            # NB: immediate reward for INTERMEDIATE ANSWER STEP
+            updates.append(Update(wrapper_name='intermediate', update_datum=(intermediate_msg, intermediate_positive, intermediate_negative, abs(reward_diff))))
+
+            # NB: immediate reward for FINAL ANSWER STEP
+            updates.append(Update(wrapper_name='final', update_datum=(final_msgs[0], ground_truth_answers[0], 1)))
+
+        final_guess = final_guesses[0]
+        if force_extractive and not any(final_guess in p['paragraph_text'] for index in used for p in (paragraphs[index],)):
+            adjusted_final_guess = convert_to_extractive(guesses=final_guesses, datum=datum, used=used)
+            if adjusted_final_guess:
+                final_guess = adjusted_final_guess
+        answerf1 = MetricsAnswer.compute_f1_max(a_golds=ground_truth_answers, a_pred=final_guess)
+        answerem = MetricsAnswer.compute_exact_max(a_golds=ground_truth_answers, a_pred=final_guess)
+        supportf1 = MetricsSupport.supportf1(sp_pred=used, sp_gold=sp_gold)
+    else:
+        final_guess = final_guesses[0]
+        if force_extractive and not any(final_guess in p['paragraph_text'] for index in used for p in (paragraphs[index],)):
+            adjusted_final_guess = convert_to_extractive(guesses=final_guesses, datum=datum, used=used)
+            if adjusted_final_guess:
+                final_guess = adjusted_final_guess
+        answerf1 = answerem = supportf1 = None
+
+    # SUFFICIENCY STEP: form sufficiency prediction
+    suff_msg = format_for_sufficiency(question=question, knowledge=knowledge, ctsig=ctsig)
+    if trace: print(f'suff_msg = { pformat(suff_msg) }', flush=True)
+    suff_raw_score = wrappers['sufficiency'].score([ suff_msg ], micro_batch_size=1)[0]
+    suff_pred = suff_raw_score > -log(2)
+    suff_score = None if answerable is None else (suff_pred == answerable)
 
     if do_learning:
-        ranked_intermediates = [ v for v in sorted(zip(all_answerf1s[1:], intermediate_guesses[1:]), reverse=True) ]
-        best_ranked_intermediate = ranked_intermediates[0][1]
-        greedy_intermediate = intermediate_guesses[0]
-        reward_diff = all_answerf1s[0] - ranked_intermediates[0][0]
-        intermediate_positive, intermediate_negative = (greedy_intermediate, best_ranked_intermediate) if reward_diff >= 0 else (best_ranked_intermediate, greedy_intermediate)
-
-        # NB: immediate reward for INTERMEDIATE ANSWER STEP
-        updates.append(Update(wrapper_name='intermediate', update_datum=(intermediate_msg, intermediate_positive, intermediate_negative, abs(reward_diff))))
-
-        # NB: immediate reward for FINAL ANSWER STEP
-        updates.append(Update(wrapper_name='final', update_datum=(final_msgs[0], ground_truth_answers[0], 1)))
-
-    final_guess = final_guesses[0]
-    if force_extractive and not any(final_guess in p['paragraph_text'] for index in used for p in (paragraphs[index],)):
-        adjusted_final_guess = convert_to_extractive(guesses=final_guesses, datum=datum, used=used)
-        if adjusted_final_guess:
-            final_guess = adjusted_final_guess
-    answerf1 = MetricsAnswer.compute_f1_max(a_golds=ground_truth_answers, a_pred=final_guess)
-    answerem = MetricsAnswer.compute_exact_max(a_golds=ground_truth_answers, a_pred=final_guess)
-    supportf1 = MetricsSupport.supportf1(sp_pred=used, sp_gold=sp_gold)
+        # NB: immediate reward for SUFFICIENCY STEP: based upon answerable
+        updates.append(Update(wrapper_name='sufficiency', update_datum=(suff_msg, "Yes" if answerable else "No", 1)))
 
     if trace:
         precision = sum(1 for index in used if paragraphs[index]['is_supporting']) / max(1, len(used))
         recall = sum(1 for index in used if paragraphs[index]['is_supporting'])  / max(1, sum(1 for p in paragraphs if p['is_supporting']))
         print('****************', flush=True)
+        print(f'answerable = {answerable} suff_pred = {suff_pred}', flush=True)
         print(f'question = {question}', flush=True)
         print(f'retrieval = {pformat([ paragraphs[index]["is_supporting"] for index in used ])}', flush=True)
         print(f'precision = {precision} recall = {recall} supportf1 = {supportf1}', flush=True)
@@ -127,24 +157,34 @@ def evaluate_conversation(*, wrappers, datum, max_queries, ctsig, do_learning, t
     # NB: (id, pardigest) is unique in the full dev/test dataset files
     partext = '\n\n'.join(p['paragraph_text'] for p in paragraphs)
     pardigest = hashlib.sha256(partext.encode('utf-8')).hexdigest()
-    edata = EpisodeData(ansf1 = answerf1, ansem = answerem, id = datum['id'], nquery = nquery,
-                        predicted_answerable = True, predicted_answer = final_guess, predicted_support_idxs = sorted(set(used)),
-                        suff = 1, suppf1 = supportf1, pardigest = pardigest, suff_raw_score = 1)
+    edata =  EpisodeData(ansf1 = answerf1, ansem = answerem, id = datum['id'], nquery = nquery,
+                         predicted_answerable = suff_pred, predicted_answer = final_guess, predicted_support_idxs = sorted(set(used)),
+                         suff = suff_score, suppf1 = supportf1, pardigest = pardigest, suff_raw_score = suff_raw_score)
 
     return edata, updates
 
+def string_to_unit_interval(s: str) -> float:
+    import hashlib
+
+    # Step 1: Compute the SHA-256 hash of the string
+    hash_object = hashlib.sha256(s.encode())
+    hex_digest = hash_object.hexdigest()
+
+    # Step 2: Convert the hash (hex string) to an integer
+    hash_integer = int(hex_digest, 16)
+
+    # Step 3: Normalize the integer to the unit interval [0, 1)
+    # The maximum possible value for a SHA-256 hash (256-bit) is 2^256 - 1
+    max_value = 2**256 - 1
+    normalized_value = hash_integer / max_value
+
+    return normalized_value
+
 def generate_data(*, rank, world_size, wrappers, seekto, split, do_learning, max_queries, ctsig, trace, micro_batch_size, distribution_matching, force_extractive, dataset_seed):
     from datasets import load_dataset
-    from random import Random
     import torch.distributed as dist
 
-    rgen = Random(2112 + rank)
-
-    if split == 'test':
-        dataset = load_dataset('./musique_dataset.py', 'answerable', trust_remote_code=True)
-    else:
-        dataset_id = 'bdsaglam/musique-raw'
-        dataset = load_dataset(dataset_id)
+    dataset = load_dataset('./musique_dataset.py', 'full', trust_remote_code=True)
 
     if do_learning:
         iterable_dataset = dataset[split].to_iterable_dataset(num_shards=128)
@@ -160,23 +200,22 @@ def generate_data(*, rank, world_size, wrappers, seekto, split, do_learning, max
             continue
 
         if split == 'train' and distribution_matching:
-            freqs = { 2: 0.25, 3: 0.5, 4: 1 }
-            support_count = sum(1 for p in datum['paragraphs'] if p['is_supporting'])
+            freqs = { '2hop': 0.25, '3hop': 0.5, '4hop': 1 }
 
-            if rgen.random() > freqs[support_count]:
+            # NB: want to reject (or accept) both examples in the pair
+            if string_to_unit_interval(datum['id']) > freqs[datum['id'][:4]]:
                 continue
 
         dist.barrier()
 
-        if split == 'test':
-            # mitigate differences between musique-raw and this version
-            # TODO: understand dataset library better and fix this in ./musique_dataset.py
+        # mitigate differences between musique-raw and this version
+        # TODO: understand dataset library better and fix this in ./musique_dataset.py
 
-            paragraphs = [ { 'idx': idx, 'title': title, 'paragraph_text': text, 'is_supporting': is_supporting }
-                           for p in (datum['paragraphs'],)
-                           for idx, title, text, is_supporting in zip(p['idx'], p['title'], p['paragraph_text'], p['is_supporting'],)
-                         ]
-            datum['paragraphs'] = paragraphs
+        paragraphs = [ { 'idx': idx, 'title': title, 'paragraph_text': text, 'is_supporting': is_supporting }
+                       for p in (datum['paragraphs'],)
+                       for idx, title, text, is_supporting in zip(p['idx'], p['title'], p['paragraph_text'], p['is_supporting'],)
+                     ]
+        datum['paragraphs'] = paragraphs
 
         yield evaluate_conversation(wrappers = wrappers,
                                     datum = datum,
@@ -341,8 +380,9 @@ def setup_everything(*, save_pathspec_prefix):
                          init_kwargs={ 'beta': P.dpo_beta, 'generate_kwargs': { 'do_beam': True, 'diverse_beam': True, 'max_new_tokens': 100 } }),
                  Adapter(cls=PGAgent, suffix='final', model_id=P.final_model_id, prototype=prototype, empty_cache=P.empty_cache_every,
                          init_kwargs={ 'generate_kwargs': { 'do_beam': True, 'explore': False, 'max_new_tokens': 25 } }),
+                 Adapter(cls=YesNoAgent, suffix='sufficiency', model_id=P.sufficiency_model_id, prototype=prototype, empty_cache=P.empty_cache_every, init_kwargs={}),
                ]
-    metrics = [ 'ansf1', 'ansem', 'suppf1', 'nquery' ] + [ f'{adapter.suffix[:3]}{wut}' for adapter in sorted(adapters, key=lambda z:z.suffix) for wut in ('loss', 'up',) ]
+    metrics = [ 'ansf1', 'ansem', 'suppf1', 'nquery', 'suff' ] + [ f'{adapter.suffix[:3]}{wut}' for adapter in sorted(adapters, key=lambda z:z.suffix) for wut in ('loss', 'up',) ]
     gpu_dist_port, printer_port, proxy_port, worker_dist_port = [ P.base_port + n for n in range(4) ]
 
     # NB: magically this is ok ...
@@ -359,4 +399,4 @@ def setup_everything(*, save_pathspec_prefix):
 
 if __name__ == '__main__':
     # NB: the purpose of the multiprocessing complexity is to atomize the computation graph so that model parallelism avoids deadlock with dynamic graphs
-    setup_everything(save_pathspec_prefix="save_musique_qdecompdyn")
+    setup_everything(save_pathspec_prefix="save_musique_qdecompdynfull")
