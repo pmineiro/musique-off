@@ -33,6 +33,8 @@ I changed all the default settings to correspond to the submitted configuration,
 * Live subsample the training dataset to (approximately) match the hop moments with the dev set.
    * If you don't want this, try `env distribution_matching=False ./qdecompdyn.py`
    * To find more (undocumented) settings you can try, check out [Params.py](Params.py)
+* Output running predictions to the file `train.preds` (`prediction_file=train.preds`)
+   * This is progressive validation, i.e., predictions are made on an example before learning is done for that example.
 
 This takes about 4 A100-days to run and will dump a bunch of checkpoints to the current directory.  To save time, you can use [snapshots/onetrainingpass](snapshots/onetrainingpass) which contains the final checkpoint from a single training pass on the training set.
 
@@ -45,7 +47,6 @@ env do_learning=False force_extractive=True prediction_file=val.preds split=vali
 ```
 
 * `force_extractive=True`: This adjusts the output of the flow to correspond to a span in one of the selected documents.  Set to False if you don't want this.
-* `prediction_file=val.preds`: This outputs the predictions to the file `val.preds`. 
 
 This takes about 1 A100-day.
 
