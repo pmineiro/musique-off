@@ -1,5 +1,5 @@
 # musique-off
-Online Finetuned Flow Submission to Musique QA Benchmark
+[Online Finetuned Flow](https://arxiv.org/abs/2406.04516) Submission to [Musique QA Benchmark](https://leaderboard.allenai.org/musique_ans/submissions/public)
 
 # Legal Stuff
 
