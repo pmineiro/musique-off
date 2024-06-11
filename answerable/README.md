@@ -13,7 +13,6 @@ Table of Contents
 
 <!-- Created by https://github.com/ekalinin/github-markdown-toc -->
 
-
 # Install dependencies first
 
 [install dependencies](../README.md)
@@ -95,4 +94,6 @@ If you set the `trace=True` environment variable, all the scripts will output ve
 ```bash
 env CUDA_VISIBLE_DEVICES=0 trace=True do_learning=False force_extractive=True split=validation final_model_id=snapshots/onetrainingpass/save_musique_qdecompdyn_final_final ./qdecompdyn.py
 ```
+will display information for a trained model on examples it was not trained on (the dev set) but for which you have gold labels available.
+
 I included the `CUDA_VISIBLE_DEVICES=0` otherwise you'll get interleaved output from multiple worker threads.
