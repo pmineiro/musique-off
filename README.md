@@ -1,5 +1,5 @@
 # musique-off
-Online Finetuned Flow Submission to Musique QA Benchmark
+[Online Finetuned Flow](https://arxiv.org/abs/2406.04516) Submission to [Musique QA Benchmark](https://leaderboard.allenai.org/musique_ans/submissions/public)
 
 # Legal Stuff
 
@@ -19,3 +19,7 @@ pip install -r requirements.txt
 # Musique-Answerable
 
 [answerable/README.md](answerable/README.md)
+
+# Musique-Full
+
+[full/README.md](full/README.md)

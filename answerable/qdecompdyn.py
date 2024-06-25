@@ -337,7 +337,7 @@ def setup_everything(*, save_pathspec_prefix):
                          init_kwargs={ 'beta': P.dpo_beta, 'generate_kwargs': { 'do_beam': True, 'diverse_beam': True, 'max_new_tokens': 50 } }),
                  Adapter(cls=YesNoAgent, suffix='relevance', model_id=P.relevance_model_id, prototype=prototype, empty_cache=P.empty_cache_every, init_kwargs={}),
                  Adapter(cls=YesNoAgent, suffix='stop', model_id=P.stop_model_id, prototype=prototype, empty_cache=P.empty_cache_every, init_kwargs={}),
-                 Adapter(cls=DPOAgent, suffix=f'intermediate', model_id=P.intermediate_model_id, prototype=prototype, empty_cache=P.empty_cache_every,
+                 Adapter(cls=DPOAgent, suffix='intermediate', model_id=P.intermediate_model_id, prototype=prototype, empty_cache=P.empty_cache_every,
                          init_kwargs={ 'beta': P.dpo_beta, 'generate_kwargs': { 'do_beam': True, 'diverse_beam': True, 'max_new_tokens': 100 } }),
                  Adapter(cls=PGAgent, suffix='final', model_id=P.final_model_id, prototype=prototype, empty_cache=P.empty_cache_every,
                          init_kwargs={ 'generate_kwargs': { 'do_beam': True, 'explore': False, 'max_new_tokens': 25 } }),
