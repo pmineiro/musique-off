@@ -3,6 +3,7 @@ bitsandbytes==0.43.1
 datasets==2.18.0
 flash-attn==2.5.8
 more-itertools==10.2.0
+numpy==1.26.4
 parameterfree==0.0.1
 peft==0.10.0
 torch==2.2.2
